@@ -1,0 +1,162 @@
+{
+  "name": "low_cache_hits_count_in_coredns",
+  "description": "This incident type occurs when the cache hits count in a CoreDNS test environment is lower than expected. This could indicate a problem with caching functionality or performance issues. It may require investigation and troubleshooting to determine the root cause of the low cache hits count and resolve the issue.",
+  "params": [
+    {
+      "name": "SERVICE_NAME",
+      "value": ""
+    },
+    {
+      "name": "COREDNS_CONFIGMAP_NAME",
+      "value": ""
+    },
+    {
+      "name": "POD_NAME",
+      "value": ""
+    },
+    {
+      "name": "NAMESPACE",
+      "value": ""
+    },
+    {
+      "name": "NEW_CACHE_SIZE",
+      "value": ""
+    },
+    {
+      "name": "K8S_CLUSTER_NAME",
+      "value": ""
+    },
+    {
+      "name": "HOST_NAME",
+      "value": ""
+    }
+  ],
+  "cells": [
+    {
+      "name": "cell_1",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Low cache hits count in CoreDNS\nThis incident type occurs when the cache hits count in a CoreDNS test environment is lower than expected. This could indicate a problem with caching functionality or performance issues. It may require investigation and troubleshooting to determine the root cause of the low cache hits count and resolve the issue."
+    },
+    {
+      "name": "cell_2",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check if the CoreDNS pods are running"
+    },
+    {
+      "name": "cell_3",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "pod | k8s_cluster_name=$K8S_CLUSTER_NAME | app='shoreline' | limit=1 | random=1 | `kubectl get pods -n ${NAMESPACE}`"
+    },
+    {
+      "name": "cell_4",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## If the pods are not running, check the pod events for any errors"
+    },
+    {
+      "name": "cell_5",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "pod | k8s_cluster_name=$K8S_CLUSTER_NAME | app='shoreline' | limit=1 | random=1 | `kubectl describe pod ${POD_NAME} -n ${NAMESPACE}`"
+    },
+    {
+      "name": "cell_6",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check the CoreDNS logs for any errors"
+    },
+    {
+      "name": "cell_7",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "pod | k8s_cluster_name=$K8S_CLUSTER_NAME | app='shoreline' | limit=1 | random=1 | `kubectl logs ${POD_NAME} -n ${NAMESPACE}`"
+    },
+    {
+      "name": "cell_8",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check the CoreDNS configuration for any issues"
+    },
+    {
+      "name": "cell_9",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "pod | k8s_cluster_name=$K8S_CLUSTER_NAME | app='shoreline' | limit=1 | random=1 | `kubectl get configmap coredns -n ${NAMESPACE}`"
+    },
+    {
+      "name": "cell_10",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check if the Kubernetes DNS service is properly configured with CoreDNS"
+    },
+    {
+      "name": "cell_11",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "pod | k8s_cluster_name=$K8S_CLUSTER_NAME | app='shoreline' | limit=1 | random=1 | `kubectl get svc kube-dns  -n ${NAMESPACE}`"
+    },
+    {
+      "name": "cell_12",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check the DNS resolution from a pod"
+    },
+    {
+      "name": "cell_13",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "pod | k8s_cluster_name=$K8S_CLUSTER_NAME | app='shoreline' | limit=1 | random=1 | `kubectl run -it --rm check_dns --image=busybox:1.28 --restart=Never -- nslookup ${SERVICE_NAME}.${NAMESPACE}.svc.cluster.local`"
+    },
+    {
+      "name": "cell_14",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Get the current CoreDNS cache size"
+    },
+    {
+      "name": "cell_15",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `cat /etc/coredns/Corefile | grep -oP 'cache\\s\\{\\s*success\\s+([\\d]+)' | awk '{print $3}')`"
+    },
+    {
+      "name": "cell_16",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Increase the CoreDNS cache size by 50%"
+    },
+    {
+      "name": "cell_17",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `NEW_CACHE_SIZE=$(echo \"$CURRENT_CACHE_SIZE * 1.5\" | bc | awk '{print int($1+0.5)}')`"
+    },
+    {
+      "name": "cell_18",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## with the new cache size"
+    },
+    {
+      "name": "cell_19",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "pod | k8s_cluster_name=$K8S_CLUSTER_NAME | app='shoreline' | limit=1 | random=1 | `kubectl patch configmap ${CONFIGMAP_NAME} -n ${NAMESPACE} --type merge --patch '{\"data\": {\"Corefile\": \"cache ${NEW_CACHE_SIZE} \\n\"}}'`"
+    },
+    {
+      "name": "cell_20",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Restart the CoreDNS pod to apply the changes"
+    },
+    {
+      "name": "cell_21",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "pod | k8s_cluster_name=$K8S_CLUSTER_NAME | app='shoreline' | limit=1 | random=1 | `kubectl rollout restart deployment $DEPLOYMENT`"
+    }
+  ]
+}
